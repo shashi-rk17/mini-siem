@@ -1,0 +1,6 @@
+.env
+logs/*
+!logs/.gitkeep
+!logs/nginx/.gitkeep
+__pycache__/
+.pytest_cache/

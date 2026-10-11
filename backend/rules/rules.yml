@@ -1,0 +1,55 @@
+# match: field equals value | field in [list] | field: {regex: ...} | field: {gte: n}
+# group_by: event field the counter is keyed on (default src_ip)
+# threshold hits within window seconds => alert; cooldown suppresses repeats per rule+key
+rules:
+  - id: ssh_bruteforce
+    description: Repeated failed SSH logins from one IP
+    severity: high
+    match: {source: ssh, event_type: auth_failure}
+    threshold: 5
+    window: 60
+
+  - id: web_login_flood
+    description: Burst of POSTs to a login endpoint (possible password guessing)
+    severity: high
+    match: {source: nginx, method: POST, path: {regex: 'login'}}
+    threshold: 10
+    window: 60
+
+  - id: web_scanner_404
+    description: Many 404s from one IP (directory/file scanning)
+    severity: medium
+    match: {source: nginx, status: 404}
+    threshold: 20
+    window: 60
+
+  - id: sqli_attempt
+    description: SQL injection pattern in request
+    severity: critical
+    match:
+      source: nginx
+      path: {regex: 'union[\s+]+select|\bor\b\s+\S{1,3}\s*=\s*\S{1,3}|sleep\(|information_schema|benchmark\('}
+    threshold: 1
+
+  - id: xss_attempt
+    description: XSS pattern in request
+    severity: high
+    match:
+      source: nginx
+      path: {regex: '<script|javascript:|onerror\s*=|onload\s*='}
+    threshold: 1
+
+  - id: path_traversal
+    description: Path traversal / sensitive file access attempt
+    severity: high
+    match:
+      source: nginx
+      path: {regex: '\.\./|\.\.\\|/etc/passwd|/etc/shadow'}
+    threshold: 1
+
+  - id: vault_login_bruteforce
+    description: Repeated failed logins against the vault app
+    severity: high
+    match: {source: app, event_type: login_failed}
+    threshold: 5
+    window: 60

@@ -1,0 +1,60 @@
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://siem:siem@postgres:5432/siem
+  REDIS_URL: redis://redis:6379/0
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: siem, POSTGRES_PASSWORD: siem, POSTGRES_DB: siem}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siem"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  collector:
+    build: ./backend
+    command: python -m app.collector
+    environment:
+      <<: *backend-env
+      LOG_SOURCES: "nginx:/logs/nginx/access.log,ssh:/logs/auth.log,app:/logs/app.log"
+    volumes:
+      - ./logs:/logs
+      - ./backend/rules:/app/rules:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  api:
+    build: ./backend
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
+    environment: *backend-env
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  # --- attack targets: docker compose --profile targets up ---
+  dvwa:
+    image: vulnerables/web-dvwa
+    profiles: ["targets"]
+
+  proxy:
+    image: nginx:alpine
+    profiles: ["targets"]
+    ports: ["8080:80"]
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on: [dvwa]
+
+volumes:
+  pgdata:
