@@ -44,7 +44,8 @@ Rules live in `backend/rules/rules.yml`, so adding one needs no code change.
 | `nikto` scan (7,794 requests in 16s) | web_scanner_404 and others |
 
 The SSH and app-log rules were tested with the included attack simulator (`scripts/attack_sim.py`).
-
+![Upper Dashboard](docs/upperdashboard.png)
+![Kali](docs/kali.png)
 ![Telegram alert](docs/telegram.png)
 
 ## Quick start
